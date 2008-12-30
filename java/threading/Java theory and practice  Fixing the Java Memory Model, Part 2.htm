@@ -1,0 +1,547 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0053)http://www.ibm.com/developerworks/library/j-jtp03304/ -->
+<HTML xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><HEAD><META http-equiv="Content-Type" content="text/html; charset=UTF-8"><TITLE>Java theory and practice: Fixing the Java Memory Model, Part 2</TITLE><META http-equiv="PICS-Label" content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))">
+<LINK rel="schema.DC" href="http://purl.org/DC/elements/1.0/">
+<LINK rel="SHORTCUT ICON" href="http://www.ibm.com/favicon.ico">
+<META name="Owner" content="dW Information/Raleigh/IBM">
+<META name="DC.Language" scheme="rfc1766" content="en">
+<META name="IBM.Country" content="ZZ">
+<META name="Security" content="Public">
+<META name="IBM.SpecialPurpose" content="SP001">
+<META name="IBM.PageAttributes" content="sid=1003">
+<META name="Source" content="Based on v15 Template Generator, Template 15"><META name="Abstract" content="JSR 133, which has been active for nearly three years, has recently issued its public recommendation on what to do about the Java Memory Model (JMM). In Part 1 of this series, columnist Brian Goetz focused on some of the serious flaws that were found in the original JMM, which resulted in some surprisingly difficult semantics for concepts that were supposed to be simple. This month, he reveals how the semantics of volatile and final will change under the new JMM, changes that will bring their semantics in line with most developers&#39; intuition. Some of these changes are already present in JDK 1.4; others will have to wait until JDK 1.5. Share your thoughts on this article with the author and other readers in the accompanying discussion forum."><META name="Description" content="JSR 133, which has been active for nearly three years, has recently issued its public recommendation on what to do about the Java Memory Model (JMM). In Part 1 of this series, columnist Brian Goetz focused on some of the serious flaws that were found in the original JMM, which resulted in some surprisingly difficult semantics for concepts that were supposed to be simple. This month, he reveals how the semantics of volatile and final will change under the new JMM, changes that will bring their semantics in line with most developers&#39; intuition. Some of these changes are already present in JDK 1.4; others will have to wait until JDK 1.5. Share your thoughts on this article with the author and other readers in the accompanying discussion forum."><META name="Keywords" content="JSR 133, Java Memory Model, JMM, reordering, cache, synchronized, synchronization, volatile, final, immutable, Brian Goetz, Java Theory and Practice, tttjca"><META name="DC.Date" scheme="iso8601" content="2004-03-30"><META name="DC.Type" scheme="IBM_ContentClassTaxonomy" content="CT316"><META name="DC.Subject" scheme="IBM_SubjectTaxonomy" content="TT300"><META name="DC.Rights" content="Copyright (c) 2004 by IBM Corporation"> <META name="Robots" content="index,follow"><META name="IBM.Effective" scheme="W3CDTF" content="2004-03-30"><META name="Last update" content="04102008mwfergus@us.ibm.com"><!-- STYLESHEETS/SCRIPTS -->
+<!-- for tables -->
+<LINK rel="stylesheet" type="text/css" media="screen,print" href="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/table.css"> 
+<!-- end for tables -->
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/dwcss14.js" type="text/javascript"></SCRIPT><LINK rel="stylesheet" href="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/r1v14.css" type="text/css">
+<LINK rel="stylesheet" type="text/css" href="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/main.css">
+<LINK rel="stylesheet" type="text/css" media="all" href="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/screen.css">
+<LINK rel="stylesheet" type="text/css" media="print" href="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/print.css">
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/detection.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/ibmcommon.js" type="text/javascript">//</SCRIPT><LINK rel="search" type="application/opensearchdescription+xml" href="http://www.ibm.com/search/opensearch/description.xml" title="IBM Search">
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/dynamicnav.js" type="text/javascript">//</SCRIPT>
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/dropdown.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/grabtitle.js" type="text/javascript"></SCRIPT>
+<SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/emailfriend2.js" type="text/javascript"></SCRIPT><SCRIPT language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/urltactic.js" type="text/javascript"></SCRIPT><SCRIPT language="JavaScript" type="text/javascript">
+ <!--
+ setDefaultQuery('javaart');
+ //-->
+</SCRIPT>
+<!--START RESERVED FOR FUTURE USE INCLUDE FILES--><SCRIPT language="javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/ajax1.js" type="text/javascript"></SCRIPT><SCRIPT language="javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/search_counter.js" type="text/javascript"></SCRIPT><SCRIPT language="javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/request_referer_capture.js" type="text/javascript"></SCRIPT><SCRIPT language="javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/summaries_switcher.js" type="text/javascript"></SCRIPT><!--END RESERVED FOR FUTURE USE INCLUDE FILES--><SCRIPT language="JavaScript" type="text/javascript">var emailAbstract = "JSR 133, which has been active for nearly three years, has recently issued its public recommendation on what to do about the Java Memory Model (JMM). In Part 1 of this series, columnist Brian Goetz focused on some of the serious flaws that were found in the original JMM, which resulted in some surprisingly difficult semantics for concepts that were supposed to be simple. This month, he reveals how the semantics of volatile and final will change under the new JMM, changes that will bring their semantics in line with most developers' intuition. Some of these changes are already present in JDK 1.4; others will have to wait until JDK 1.5. Share your thoughts on this article with the author and other readers in the accompanying discussion forum."; </SCRIPT><SCRIPT id="mhMenu" type="text/javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/usen-utf8.js" charset="UTF-8"></SCRIPT><SCRIPT id="dynavEA" type="text/javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/Controller" charset="UTF-8"></SCRIPT><SCRIPT id="wiBundle" type="text/javascript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/Controller(1)" charset="UTF-8"></SCRIPT></HEAD><BODY><!--MASTHEAD_BEGIN--><DIV id="ibm-top" class="ibm-liquid">
+<DIV class="ibm-access"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#main">Skip to main content</A></DIV>
+
+<DIV id="ibm-masthead">
+<DIV id="ibm-logo"><A href="http://www.ibm.com/"><IMG width="110" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/ibm-logo.gif" height="50" alt="IBM&reg;"></A></DIV>
+
+<UL id="ibm-geo">
+<LI class="ibm-first" id="ibm-country">Country/region</LI>
+<LI id="ibm-change-country">[ <A href="http://www.ibm.com/developerworks/country/">select</A> ]</LI>
+</UL>
+
+<FORM id="ibm-search-form" action="http://www.ibm.com/developerworks/search/searchResults.jsp" method="get" name="form1"><INPUT type="hidden" name="searchType" value="1"><INPUT type="hidden" name="searchSite" value="dW"><P>
+<SPAN id="ibm-search-scope">
+<LABEL for="sn"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" width="1" height="1" alt="Search in:"></LABEL>
+<SELECT class="input-local" name="searchScope" id="sn" size="1">
+<OPTION value="dW" selected="selected">All of dW</OPTION>
+<OPTION value="dW">-----------------</OPTION>
+<OPTION value="aixunix">&nbsp;&nbsp;AIX and UNIX</OPTION>
+<OPTION value="db2">&nbsp;&nbsp;Information Mgmt</OPTION>
+<OPTION value="lotus">&nbsp;&nbsp;Lotus</OPTION>
+<OPTION value="rdd">&nbsp;&nbsp;Rational</OPTION>
+<OPTION value="tivoli">&nbsp;&nbsp;Tivoli</OPTION>  
+<OPTION value="WSDD">&nbsp;&nbsp;WebSphere</OPTION>
+<OPTION value="dW">-----------------</OPTION> 
+<OPTION value="archZ">&nbsp;&nbsp;Architecture</OPTION>
+<OPTION value="acZ">&nbsp;&nbsp;Autonomic computing</OPTION>
+<OPTION value="javaZ">&nbsp;&nbsp;Java technology</OPTION> 
+<OPTION value="linuxZ">&nbsp;&nbsp;Linux</OPTION> 
+<OPTION value="paZ">&nbsp;&nbsp;Multicore acceleration</OPTION>
+<OPTION value="opensrcZ">&nbsp;&nbsp;Open source</OPTION>
+<OPTION value="webservZ">&nbsp;&nbsp;SOA &amp; Web services</OPTION>
+<OPTION value="webarchZ">&nbsp;&nbsp;Web development</OPTION>  
+<OPTION value="xmlZ">&nbsp;&nbsp;XML</OPTION>
+<OPTION value="dW">-----------------</OPTION>
+<OPTION value="forums">&nbsp;&nbsp;dW forums</OPTION> 
+<OPTION value="dW">-----------------</OPTION>
+<OPTION value="aW">alphaWorks</OPTION>
+<OPTION value="dW">-----------------</OPTION>
+<OPTION value="all">All of IBM</OPTION>
+</SELECT>
+</SPAN>
+
+<LABEL for="q"><IMG alt="Search for:" height="1" width="1" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></LABEL><INPUT type="text" name="query" maxlength="100" id="q"><INPUT type="submit" id="ibm-search" class="ibm-btn-search" name="Search" value="Search"></P></FORM>
+
+<DIV id="ibm-site-name">
+<!-- IBM site name container -->
+</DIV>
+
+<DIV id="ibm-universal-nav">
+<UL>
+<LI class="ibm-first" id="ibm-unav-home"><A href="http://www.ibm.com/us/en/">Home</A></LI>
+<LI id="ibm-unav-solutions"><A href="http://www.ibm.com/solutions/us/en/" class=" ibm-unav-has-child">Solutions</A><DIV class="ibm-unav-menu" id="gi-9d84c1c7"><SPAN class="ibm-unav-menu-ehb" id="gi-9d84c1c7-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI class=" ibm-place-holder"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-3c284614-trigger">By industry</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-3c284614"><SPAN class="ibm-unav-menu-ehb" id="gi-3c284614-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/industries/aerodefense/?cm_re=masthead-_-business-_-ind-aerodef">Aerospace and defense</A></LI><LI><A href="http://www.ibm.com/industries/automotive/?cm_re=masthead-_-business-_-ind-auto">Automotive</A></LI><LI><A href="http://www.ibm.com/industries/financialservices/banking/?cm_re=masthead-_-business-_-ind-banking">Banking</A></LI><LI><A href="http://www.ibm.com/industries/chemicalspetroleum/?cm_re=masthead-_-business-_-ind-chem">Chemicals and petroleum</A></LI><LI><A href="http://www.ibm.com/industries/consumerproducts/?cm_re=masthead-_-business-_-ind-consumer">Consumer products</A></LI><LI><A href="http://www.ibm.com/industries/education/?cm_re=masthead-_-business-_-ind-edu">Education</A></LI><LI><A href="http://www.ibm.com/industries/electronics/?cm_re=masthead-_-business-_-ind-elec">Electronics</A></LI><LI><A href="http://www.ibm.com/industries/utilities/?cm_re=masthead-_-business-_-ind-energy">Energy and utilities</A></LI><LI><A href="http://www.ibm.com/industries/financialservices/financialmarkets/?cm_re=masthead-_-business-_-ind-finance">Financial markets</A></LI><LI><A href="http://www.ibm.com/industries/government/?cm_re=masthead-_-business-_-ind-gov">Government</A></LI><LI><A href="http://www.ibm.com/industries/healthcare/?cm_re=masthead-_-business-_-ind-health">Healthcare and life sciences</A></LI><LI><A href="http://www.ibm.com/industries/industrialproducts/index.jsp?cm_re=masthead-_-business-_-ind-ind_prods">Industrial products</A></LI><LI><A href="http://www.ibm.com/industries/financialservices/insurance/?cm_re=masthead-_-business-_-ind-ins">Insurance</A></LI><LI><A href="http://www.ibm.com/industries/media/?cm_re=masthead-_-business-_-ind-media">Media and entertainment</A></LI><LI><A href="http://www.ibm.com/industries/retail/?cm_re=masthead-_-business-_-ind-retail">Retail</A></LI><LI><A href="http://www.ibm.com/industries/telecom/?cm_re=masthead-_-business-_-ind-tele">Telecommunications</A></LI><LI><A href="http://www.ibm.com/industries/travel/?cm_re=masthead-_-business-_-ind-travel">Travel and transportation</A></LI><LI><A href="http://www.ibm.com/wholesaledistribution/?cm_re=masthead-_-business-_-ind-wholesale">Wholesale distribution</A></LI><LI><A href="http://www.ibm.com/businesscenter/smb/us/en/industries?cm_re=masthead-_-business-_-ind-medbus">Medium business industries</A></LI></UL></DIV></LI><LI class=" ibm-place-holder"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-e12ac03b-trigger">By business need</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-e12ac03b"><SPAN class="ibm-unav-menu-ehb" id="gi-e12ac03b-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/software/data/db2bi/?cm_re=masthead-_-business-_-bzn-busint">Business intelligence</A></LI><LI><A href="http://www.ibm.com/services/crm/?cm_re=masthead-_-business-_-bzn-crm">Customer relationship management</A></LI><LI><A href="http://www.ibm.com/solutions/erp/?cm_re=masthead-_-business-_-bzn-erp">Enterprise resource planning</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_financialmgmt.html?re=bcs_home&cm_re=masthead-_-business-_-bzn-finmgmt">Financial management</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_humancapitalmgmt.html?re=bcs_home&cm_re=masthead-_-business-_-bzn-humancap">Human capital management</A></LI><LI><A href="http://www.ibm.com/software/plm/?cm_re=masthead-_-business-_-bzn-plm">Product lifecycle management</A></LI><LI><A href="http://www.ibm.com/security/index.shtml?cm_re=masthead-_-business-_-bzn-sec">Security</A></LI><LI><A href="http://www.ibm.com/solutions/businesssolutions/sensors/index.jsp?cm_re=masthead-_-business-_-bzn-sensors">Sensors and actuators</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_strategyplanning.html?re=bcs_home&cm_re=masthead-_-business-_-bzn-strat">Strategy and change</A></LI><LI><A href="http://www.ibm.com/services/scm/?cm_re=masthead-_-business-_-bzn-scm">Supply chain management</A></LI></UL></DIV></LI><LI class=" ibm-place-holder"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-ce42cd47-trigger">By IT issue</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-ce42cd47"><SPAN class="ibm-unav-menu-ehb" id="gi-ce42cd47-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/itsolutions/business-process-management/?cm_re=masthead-_-business-_-bzn-bpm">Business process management</A></LI><LI><A href="http://www.ibm.com/itsolutions/collaboration/?cm_re=masthead-_-business-_-bzn-collab">Collaboration</A></LI><LI><A href="http://www.ibm.com/itsolutions/content-management//?cm_re=masthead-_-business-_-bzn-content">Content management</A></LI><LI><A href="http://www.ibm.com/itsolutions/it-cost/?cm_re=masthead-_-business-_-bzn-cost">Cost management</A></LI><LI><A href="http://www.ibm.com/itsolutions/data/?cm_re=masthead-_-business-_-bzn-data">Data management</A></LI><LI><A href="http://www.ibm.com/itsolutions/disaster-recovery/?cm_re=masthead-_-business-_-bzn-recovery">Disaster recovery</A></LI><LI><A href="http://www.ibm.com/itsolutions/distribution-management/?cm_re=masthead-_-business-_-bzn-disman">Distribution management</A></LI><LI><A href="http://www.ibm.com/itsolutions/energy-efficiency/?cm_re=masthead-_-business-_-bzn-energy">Energy efficiency</A></LI><LI><A href="http://www.ibm.com/itsolutions/eai/?cm_re=masthead-_-business-_-bzn-eai">Enterprise application integration</A></LI><LI><A href="http://www.ibm.com/itsolutions/enterprisearchitecture/">Enterprise architecture</A></LI><LI><A href="http://www.ibm.com/itsolutions/compliance/?cm_re=masthead-_-business-_-bzn-compliance">Regulatory compliance</A></LI><LI><A href="http://www.ibm.com/security?cm_re=masthead-_-business-_-bzn-security">Security</A></LI><LI><A href="http://www.ibm.com/itsolutions/systems-management/?cm_re=masthead-_-business-_-bzn-sysman">Systems management</A></LI><LI><A href="http://www.ibm.com/itsolutions/virtualization/?cm_re=masthead-_-business-_-bzn-virtual">Virtualization</A></LI><LI><A href="http://www.ibm.com/itsolutions/portals/?cm_re=masthead-_-business-_-bzn-wrkforce">Workforce productivity</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-f1dff333-trigger">By top Business Partner</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-f1dff333"><SPAN class="ibm-unav-menu-ehb" id="gi-f1dff333-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/solutions/cisco/?cm_re=masthead-_-business-_-bp-cisco">IBM and Cisco</A></LI><LI><A href="http://www.ibm.com/solutions/businesssolutions/oracle/?cm_re=masthead-_-business-_-bp-oracle">IBM and Oracle</A></LI><LI><A href="http://www.ibm.com/solutions/sap/?cm_re=masthead-_-business-_-bp-sap">IBM and SAP</A></LI><LI><A href="http://www.ibm.com/solutions/businesssolutions/">More alliance partners</A></LI></UL></DIV></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_index.html?cm_re=masthead-_-business-_-busconsult">Business consulting</A></LI><LI><A href="http://www.ibm.com/financing/us/?cm_re=masthead-_-business-_-financing">Financing</A></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/soa?pgel=ibmhzn&cm_re=masthead-_-business-_-soa" id="gi-82ae6f33-trigger">Service oriented architecture (SOA)</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-82ae6f33"><SPAN class="ibm-unav-menu-ehb" id="gi-82ae6f33-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI><A href="http://www.ibm.com/businesscenter/smallbusiness/us/en?cm_re=masthead-_-business-_-sol4sb">Small business solutions</A></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/businesscenter/smb/us/en/solutionareas?cm_re=masthead-_-business-_-sol4mb" id="gi-2a4ba9f8-trigger">Medium business solutions</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-2a4ba9f8"><SPAN class="ibm-unav-menu-ehb" id="gi-2a4ba9f8-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI><A href="http://www.ibm.com/businesssolutions/us/en/?cm_re=masthead-_-business-_-more">More</A></LI></UL></DIV></LI>
+<LI id="ibm-unav-services"><A href="http://www.ibm.com/technologyservices/us/en/" class=" ibm-unav-has-child">Services</A><DIV class="ibm-unav-menu" id="gi-c692221f"><SPAN class="ibm-unav-menu-ehb" id="gi-c692221f-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-882d1dd3-trigger">IT services</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-882d1dd3"><SPAN class="ibm-unav-menu-ehb" id="gi-882d1dd3-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/services/us/index.wss">All IT services</A></LI><LI><A href="http://www.ibm.com/services/continuity/?cm_re=masthead-_-itservices-_-buscont">Business continuity and resiliency services</A></LI><LI><A href="http://www.ibm.com/services/enduser/?cm_re=masthead-_-itservices-_-enduser">End-user services</A></LI><LI><A href="http://www.ibm.com/services/integratedcommunications/?cm_re=masthead-_-itservices-_-communications">Integrated communications services</A></LI><LI><A href="http://www.ibm.com/services/itsaconsulting/?cm_re=masthead-_-itservices-_-strategy">IT strategy and architecture services</A></LI><LI><A href="http://www.ibm.com/services/maintenance/?cm_re=masthead-_-itservices-_-maint">Maintenance and technical support services</A></LI><LI><A href="http://www.ibm.com/services/middleware/?cm_re=masthead-_-itservices-_-middleware">Middleware services</A></LI><LI><A href="http://www.ibm.com/services/security/?cm_re=masthead-_-itservices-_-security">Security and privacy services</A></LI><LI><A href="http://www.ibm.com/services/server/?cm_re=masthead-_-itservices-_-server">Server services</A></LI><LI><A href="http://www.ibm.com/services/siteandfacilities/?cm_re=masthead-_-itservices-_-site">Site and facilities services</A></LI><LI><A href="http://www.ibm.com/services/storage/?cm_re=masthead-_-itservices-_-storage">Storage and data services</A></LI><LI><A href="http://www.ibm.com/services/us/index.wss/allservices">IT services A-Z</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-e6e9fddb-trigger">Business consulting</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-e6e9fddb"><SPAN class="ibm-unav-menu-ehb" id="gi-e6e9fddb-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_index.html?cm_re=masthead-_-itservices-_-busconsult">All business consulting</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_salesmrktingservices.html?re=bcs_home">Customer relationship management</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_financialmgmt.html?re=bcs_home">Financial management</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_humancapitalmgmt.html?re=bcs_home">Human capital management</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_strategyplanning.html?re=bcs_home">Strategy and change</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/bus/html/bcs_supplychainprocurement.html?re=bcs_home">Supply chain management</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-2b64dd40-trigger">Application services</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-2b64dd40"><SPAN class="ibm-unav-menu-ehb" id="gi-2b64dd40-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/services/applications?cm_re=masthead-_-business-_-apps-allappserv">All application services</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/app/html/gbs_app_custom_appdev_sysinteg.html?cm_re=masthead-_-business-_-apps-appdev">Custom application development and system integration</A></LI><LI><A href="http://www.ibm.com/services/us/gbs/app/html/gbs_app_appmanagement.html?cm_re=masthead-_-business-_-apps-appmgmt">Application management</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-c7b68173-trigger">Outsourcing services</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-c7b68173"><SPAN class="ibm-unav-menu-ehb" id="gi-c7b68173-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/services/us/index.wss/offerfamily/aod/a1028600">Applications outsourcing</A></LI><LI><A href="http://www.ibm.com/services/us/index.wss/itservice/igs/a1026220">Business process outsourcing</A></LI><LI><A href="http://www.ibm.com/services/us/index.wss/itservice/so/a1000414">IT outsourcing and hosting</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/training" id="gi-772c054-trigger">Training</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-772c054"><SPAN class="ibm-unav-menu-ehb" id="gi-772c054-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI><A href="http://www.ibm.com/businesscenter/smallbusiness/us/en/service?cm_re=masthead-_-itservices-_-smallbus">Small business services</A></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/businesscenter/smb/us/en/service?cm_re=masthead-_-itservices-_-medbus" id="gi-61dcaa10-trigger">Medium business services</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-61dcaa10"><SPAN class="ibm-unav-menu-ehb" id="gi-61dcaa10-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-8f8b3603-trigger">Other services</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-8f8b3603"><SPAN class="ibm-unav-menu-ehb" id="gi-8f8b3603-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/financing/us/recovery/?cm_re=masthead-_-itservices-_-asset">Asset recovery</A></LI><LI><A href="http://www.ibm.com/software/sw-services/?cm_re=masthead-_-itservices-_-software">Software services</A></LI></UL></DIV></LI><LI><A href="http://www.ibm.com/technologyservices/us/en/?cm_re=masthead-_-itservices-_-more">More</A></LI></UL></DIV></LI>
+<LI id="ibm-unav-products"><A href="http://www.ibm.com/products/us/en/" class=" ibm-unav-has-child">Products</A><DIV class="ibm-unav-menu" id="gi-f602ac4"><SPAN class="ibm-unav-menu-ehb" id="gi-f602ac4-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI class=" ibm-place-holder"><A href="http://www.ibm.com/products/specialoffers/us/en/index.html?cm_re=masthead-_-products-_-promo" id="gi-a517ba6f-trigger">Special offers</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-a517ba6f"><SPAN class="ibm-unav-menu-ehb" id="gi-a517ba6f-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-2e32155c-trigger">Software</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-2e32155c"><SPAN class="ibm-unav-menu-ehb" id="gi-2e32155c-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/software?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-allsoftware">Software overview</A></LI><LI><A href="http://www.ibm.com/software/sw-products/?pgel=ibmhzn&cm_re=masthead-_-products-_-swbyall">All software products</A></LI><LI><A href="http://www.ibm.com/software/sw-businessneed/?pgel=ibmhzn&cm_re=masthead-_-products-_-swbybizneed">By business need</A></LI><LI><A href="http://www.ibm.com/software/sw-bycategory?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-bycat">By category</A></LI><LI><A href="http://www.ibm.com/software/sw-atoz?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-softwarea2z">A to Z</A></LI><LI><A href="http://www.ibm.com/software/sw-keyword/?pgel=ibmhzn&cm_re=masthead-_-products-_-swbykeyword">By keyword search</A></LI><LI><A href="http://www14.software.ibm.com/webapp/download/byproduct.jsp?pgel=ibmhzn1&cm_re=masthead-_-supdl-_-dl-trials">Trials and demos</A></LI><LI><A href="http://www.ibm.com/software/data?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-infomgmt">Information Management</A></LI><LI><A href="http://www.ibm.com/software/lotus?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-lotus">Lotus</A></LI><LI><A href="http://www.ibm.com/software/rational?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-rational">Rational</A></LI><LI><A href="http://www.ibm.com/software/tivoli?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-tivoli">Tivoli</A></LI><LI><A href="http://www.ibm.com/software/websphere?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-websphere">WebSphere</A></LI><LI><A href="http://www.ibm.com/software/os/zseries?pgel=ibmhzn&cm_re=masthead-_-products-_-sw-sysz">System z software</A></LI></UL></DIV></LI><LI class=" ibm-place-holder"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-90bd4643-trigger">Storage</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-90bd4643"><SPAN class="ibm-unav-menu-ehb" id="gi-90bd4643-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/storage/?cm_re=masthead-_-products-_-stg-allstorage">All storage</A></LI><LI><A href="http://www.ibm.com/storage/disk/?cm_re=masthead-_-products-_-stg-disk">Disk systems</A></LI><LI><A href="http://www.ibm.com/storage/tape/?cm_re=masthead-_-products-_-stg-tape">Tape systems</A></LI><LI><A href="http://www.ibm.com/storage/snetwork/?cm_re=masthead-_-products-_-stg-san">Storage area networks</A></LI><LI><A href="http://www.ibm.com/totalstorage/nas/?cm_re=masthead-_-products-_-stg-nas">Network attached storage</A></LI><LI><A href="http://www.ibm.com/storage/software/?cm_re=masthead-_-products-_-stg-storagesoft">Storage software</A></LI><LI><A href="http://www.ibm.com/pc/ww/hdd/hddredirect.html?cm_re=masthead-_-products-_-stg-hdd">Hard drives/microdrives</A></LI><LI><A href="http://www.ibm.com/systems/storage/product/?cm_re=masthead-_-products-_-stg-storagea2z">Storage A to Z</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-2173442c-trigger">Systems &amp; servers</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-2173442c"><SPAN class="ibm-unav-menu-ehb" id="gi-2173442c-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/systems/?cm_re=masthead-_-products-_-sys-allsystems">All systems and servers</A></LI><LI><A href="http://www.ibm.com/systems/power/?cm_re=masthead-_-products-_-sys-power">Power Systems</A></LI><LI><A href="http://www.ibm.com/systems/i/?cm_re=masthead-_-products-_-sys-iseries">System i (iSeries)</A></LI><LI><A href="http://www.ibm.com/systems/p/?cm_re=masthead-_-products-_-sys-pseries">System p (pSeries)</A></LI><LI><A href="http://www.ibm.com/systems/z/?cm_re=masthead-_-products-_-sys-zseries">System z (Mainframe)</A></LI><LI><A href="http://www.ibm.com/systems/x/?cm_re=masthead-_-products-_-sys-xseries">System x (xSeries)</A></LI><LI><A href="http://www.ibm.com/servers/eserver/bladecenter/?cm_re=masthead-_-products-_-sys-blade">BladeCenter</A></LI><LI><A href="http://www.ibm.com/systems/clusters/?cm_re=masthead-_-products-_-sys-cluster">Cluster systems</A></LI><LI><A href="http://www.ibm.com/systems/hardware/browse/unix/?cm_re=masthead-_-products-_-sys-unix">UNIX servers</A></LI><LI><A href="http://www.ibm.com/servers/eserver/linux/?cm_re=masthead-_-products-_-sys-linux">Linux servers</A></LI><LI><A href="http://www.ibm.com/servers/jump_intel.html?cm_re=masthead-_-products-_-sys-intel">Intel processor-based servers</A></LI><LI><A href="http://www.ibm.com/servers/eserver/opteron/?cm_re=masthead-_-products-_-sys-amd">AMD processor-based servers</A></LI></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/products/retail/?cm_re=masthead-_-products-_-pos" id="gi-4dea86f4-trigger">Point of sale</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-4dea86f4"><SPAN class="ibm-unav-menu-ehb" id="gi-4dea86f4-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.infoprint.com/us" id="gi-393ed4e0-trigger">Printing systems from InfoPrint</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-393ed4e0"><SPAN class="ibm-unav-menu-ehb" id="gi-393ed4e0-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/technology/?cm_re=masthead-_-products-_-chips" id="gi-f0dab017-trigger">Semiconductors</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-f0dab017"><SPAN class="ibm-unav-menu-ehb" id="gi-f0dab017-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/shop/americas/content/home/store_IBMPublicUSA/en_US/Upgrades.html?cm_re=masthead-_-products-_-upgrades" id="gi-88f2044f-trigger">Upgrades, accessories &amp; parts</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-88f2044f"><SPAN class="ibm-unav-menu-ehb" id="gi-88f2044f-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/systems/intellistation/?cm_re=masthead-_-products-_-workstations" id="gi-6f22b5b8-trigger">Workstations</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-6f22b5b8"><SPAN class="ibm-unav-menu-ehb" id="gi-6f22b5b8-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/shop/americas/webapp/wcs/stores/servlet/HelpDisplay?storeId=1&catalogId=-840&langId=-1&subject=2576394&cm_re=masthead-_-products-_-ibmcue" id="gi-33fbbb48-trigger">Certified used PCs &amp; systems</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-33fbbb48"><SPAN class="ibm-unav-menu-ehb" id="gi-33fbbb48-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/community/?cm_re=masthead-_-products-_-promo" id="gi-92b5bf9b-trigger">Communities</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-92b5bf9b"><SPAN class="ibm-unav-menu-ehb" id="gi-92b5bf9b-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/businesscenter/smallbusiness/us/en/product?cm_re=masthead-_-products-_-smallbus" id="gi-390f1c68-trigger">Small business products</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-390f1c68"><SPAN class="ibm-unav-menu-ehb" id="gi-390f1c68-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-5f64a5a8-trigger">Medium business products</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-5f64a5a8"><SPAN class="ibm-unav-menu-ehb" id="gi-5f64a5a8-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/businesscenter/smb/us/en/product?cm_re=masthead-_-products-_-med-hardware">Hardware</A></LI><LI><A href="http://www.ibm.com/businesscenter/smb/us/en/software?cm_re=masthead-_-products-_-med-software">Software</A></LI></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/products/us/?cm_re=masthead-_-products-_-more" id="gi-440762d8-trigger">More</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-440762d8"><SPAN class="ibm-unav-menu-ehb" id="gi-440762d8-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI></UL></DIV></LI>
+<LI id="ibm-unav-support"><A href="http://www.ibm.com/support/us/en/" class=" ibm-unav-has-child">Support &amp; downloads</A><DIV class="ibm-unav-menu" id="gi-b2fb450b"><SPAN class="ibm-unav-menu-ehb" id="gi-b2fb450b-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI class=" ibm-place-holder"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-8e1a6237-trigger">Download</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-8e1a6237"><SPAN class="ibm-unav-menu-ehb" id="gi-8e1a6237-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/products/finder/us/finders?pg=ddfinder&cm_re=other-_-suprcn-_-download">Fixes, updates and drivers</A></LI><LI><A href="http://www14.software.ibm.com/webapp/download/byproduct.jsp?pgel=ibmhzn1&cm_re=masthead-_-supdl-_-dl-trials">Trials and demos</A></LI></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/troubleshooting/en_US?cm_re=other-_-suprcn-_-troubleshoot" id="gi-67b57ebc-trigger">Troubleshoot</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-67b57ebc"><SPAN class="ibm-unav-menu-ehb" id="gi-67b57ebc-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/advsrch.wss?rs=0&loc=en_US&cm_re=masthead-_-supdl-_-search" id="gi-54aff758-trigger">Search</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-54aff758"><SPAN class="ibm-unav-menu-ehb" id="gi-54aff758-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/documentation/en_US?cm_re=other-_-suprcn-_-documentation" id="gi-c14cae9f-trigger">Documentation</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-c14cae9f"><SPAN class="ibm-unav-menu-ehb" id="gi-c14cae9f-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/forums/en_US?cm_re=other-_-suprcn-_-forums" id="gi-ee97ba17-trigger">Forums &amp; communities</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-ee97ba17"><SPAN class="ibm-unav-menu-ehb" id="gi-ee97ba17-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/plan/en_US?cm_re=other-_-suprcn-_-plan" id="gi-6c876c00-trigger">Plan</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-6c876c00"><SPAN class="ibm-unav-menu-ehb" id="gi-6c876c00-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/install/en_US?cm_re=other-_-suprcn-_-install" id="gi-7e54028-trigger">Install</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-7e54028"><SPAN class="ibm-unav-menu-ehb" id="gi-7e54028-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/use/en_US?cm_re=other-_-suprcn-_-use" id="gi-d92e62b3-trigger">Use</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-d92e62b3"><SPAN class="ibm-unav-menu-ehb" id="gi-d92e62b3-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/electronic/uprtransition.wss?category=2&locale=en_us&cm_re=other-_-suprcn-_-request" id="gi-c2a40ec-trigger">Open a technical service request</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-c2a40ec"><SPAN class="ibm-unav-menu-ehb" id="gi-c2a40ec-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="javascript:void(0);" class=" ibm-unav-menu-has-child" id="gi-36ae1590-trigger">Support by product</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-36ae1590"><SPAN class="ibm-unav-menu-ehb" id="gi-36ae1590-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="http://www.ibm.com/software/support/?cm_re=masthead-_-supdl-_-sbp-software">Software</A></LI><LI><A href="http://www.ibm.com/systems/support?cm_re=masthead-_-supdl-_-sbp-systems">Systems and servers</A></LI><LI><A href="http://www.ibm.com/systems/support/supportsite.wss/brandmain?brandind=5345868&cm_re=masthead-_-supdl-_-sbp-storage">System storage</A></LI><LI><A href="http://www.infoprintsolutionscompany.com/internet/wwsites.nsf/vwwebpublished/supportoverview_ww">Printing systems from InfoPrint</A></LI><LI><A href="http://www.lenovo.com/support/?cm_re=masthead-_-supdl-_-sbp-lenovo">Lenovo ThinkPads and ThinkCentres</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="http://www.ibm.com/support/operations/us/en?cm_re=masthead-_-supdl-_-getadmin" id="gi-4744ea3c-trigger">Customer support</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-4744ea3c"><SPAN class="ibm-unav-menu-ehb" id="gi-4744ea3c-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/us/en/?cm_re=masthead-_-supdl-_-more" id="gi-db0a59a3-trigger">More</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-db0a59a3"><SPAN class="ibm-unav-menu-ehb" id="gi-db0a59a3-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI></UL></DIV></LI>
+<LI id="ibm-unav-myibm"><A href="http://www.ibm.com/account/us/en/" class=" ibm-unav-has-child">My IBM</A><DIV class="ibm-unav-menu" id="gi-c4a1b62f"><SPAN class="ibm-unav-menu-ehb" id="gi-c4a1b62f-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI class=" ibm-place-holder"><A href="http://www.ibm.com/account/myaccounts/us/en/?cm_re=masthead-_-myibm-_-myacct" id="gi-5c6f5a94-trigger">My accounts</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-5c6f5a94"><SPAN class="ibm-unav-menu-ehb" id="gi-5c6f5a94-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="https://www.ibm.com/account/myibm/profile.do?cc=us&lc=&cm_re=masthead-_-myibm-_-myprofile" id="gi-750d120c-trigger">My profile</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-750d120c"><SPAN class="ibm-unav-menu-ehb" id="gi-750d120c-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-myinterest"><A href="https://www.ibm.com/account/myibm/myinterestView.do?cc=us&lc=en&cm_re=masthead-_-myibm-_-myinterests" id="gi-2536f7e4-trigger">My interests</A><DIV class="ibm-unav-menu ibm-myinterest" id="gi-2536f7e4"><SPAN class="ibm-unav-menu-ehb" id="gi-2536f7e4-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/account/mycommunity/us/en/" id="gi-a2f425e7-trigger">My community spaces</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-a2f425e7"><SPAN class="ibm-unav-menu-ehb" id="gi-a2f425e7-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/support/mynotifications" id="gi-ca704b47-trigger">My support</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-ca704b47"><SPAN class="ibm-unav-menu-ehb" id="gi-ca704b47-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="javascript:void(0)" class=" ibm-unav-menu-has-child" id="gi-3d2d0da8-trigger">My customer support</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-3d2d0da8"><SPAN class="ibm-unav-menu-ehb" id="gi-3d2d0da8-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL><LI><A href="https://www-132.ibm.com/webapp/wcs/stores/servlet/OrderItemDisplay?langId=-1&storeId=1&catalogId=-840&krypto=g3mOZ2uZQalqnkMCJkVJ1Q%3D%3D&ddkey=OrderItemDisplay&cm_re=masthead-_-myibm-_-cs-cart">Shopping cart</A></LI><LI><A href="http://www.ibm.com/support/operations/us/en/contracts?cm_re=masthead-_-myibm-_-cs-contracts">Contracts</A></LI><LI><A href="http://www.ibm.com/support/operations/us/en/orderdelivery?cm_re=masthead-_-myibm-_-cs-orders">Orders and delivery</A></LI><LI><A href="http://www.ibm.com/support/operations/us/en/inventory?cm_re=masthead-_-myibm-_-cs-inventory">Inventory and maintenance</A></LI><LI><A href="http://www.ibm.com/support/operations/us/en/invoicespayments?cm_re=masthead-_-myibm-_-cs-invoices">Invoices and payments</A></LI><LI><A href="http://www.ibm.com/support/operations/us/en/learnmore3a?cm_re=masthead-_-myibm-_-cs-self">Self-service tools</A></LI><LI><A href="http://www.ibm.com/support/operations/us?cm_re=masthead-_-myibm-_-cs-more">More customer support</A></LI></UL></DIV></LI><LI class=" ibm-mhdyn-rule"><A href="http://www-931.ibm.com/bin/subscriptions/welcome.cgi?cl=usen&cm_re=masthead-_-myibm-_-subscriptions" id="gi-ecec27f3-trigger">Subscriptions</A><DIV class="ibm-unav-menu ibm-mhdyn-rule" id="gi-ecec27f3"><SPAN class="ibm-unav-menu-ehb" id="gi-ecec27f3-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI><LI class=" ibm-place-holder"><A href="http://www.ibm.com/account/us/en/?cm_re=masthead-_-myibm-_-more" id="gi-3fd2ac-trigger">More</A><DIV class="ibm-unav-menu ibm-place-holder" id="gi-3fd2ac"><SPAN class="ibm-unav-menu-ehb" id="gi-3fd2ac-ehb"><IMG alt="" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></SPAN><A class="ibm-access"></A><UL></UL></DIV></LI></UL></DIV></LI>
+</UL>
+</DIV>
+
+<A name="main"></A></DIV>
+
+<SCRIPT type="text/javascript" language="JavaScript" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/pmh.js">
+</SCRIPT><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/print-header.gif" width="510" height="32" alt="" id="print-masthead">
+
+<!--MASTHEAD_END--><!-- CMA ID: 10928 --> <!-- Site ID: 1 --><TABLE id="v14-body-table" border="0" cellpadding="0" cellspacing="0" width="100&percnt;"><TBODY><TR valign="top"><!--LEFTNAV_BEGIN--><TD id="navigation" width="150"><TABLE width="150" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD class="left-nav-spacer"><A href="http://www.ibm.com/developerworks" class="left-nav-overview">&nbsp;</A></TD></TR></TBODY></TABLE><TABLE width="150" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD colspan="2" class="left-nav-overview"><A href="http://www.ibm.com/developerworks" class="left-nav-overview">developerWorks</A></TD></TR></TBODY></TABLE><TABLE width="150" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD colspan="2" class="left-nav"><A class="left-nav" href="http://www.ibm.com/developerworks/views/java/libraryview.jsp?search_by=practice:">More in this series:</A><BR><A class="left-nav-child" href="http://www.ibm.com/developerworks/views/java/libraryview.jsp?search_by=practice:">Java theory and practice</A></TD></TR><TR><TD class="dw-left-nav-separator" width="14"><IMG alt="" height="6" width="14" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD class="dw-left-nav-separator" width="136"><IMG alt="" height="6" width="136" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR><TR><TD colspan="2" class="left-nav-highlight"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#" class="left-nav">In this article:</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#1.0" class="left-nav-child">Visibility, revisited</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#2.0" class="left-nav-child">New guarantees for volatile</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#3.0" class="left-nav-child">What happens before what?</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#4.0" class="left-nav-child">Initialization safety</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#5.0" class="left-nav-child">Summary</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#resources" class="left-nav-child">Resources</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#author" class="left-nav-child">About the author</A></TD></TR><TR class="left-nav-child-highlight"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/cl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#rate" class="left-nav-child">Rate this page</A></TD></TR><TR class="left-nav-last"><TD width="14"><IMG class="display-img" alt="" height="1" width="14" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="136"><IMG class="display-img" alt="" height="19" width="136" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/left-nav-corner.gif"></TD></TR></TBODY></TABLE><BR><TABLE width="150" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD class="related" colspan="2"><B class="related">Related links</B></TD></TR><TR class="rlinks"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/rl-bullet.gif"></TD><TD><A class="rlinks" href="http://www.ibm.com/developerworks/views/java/library.jsp">Java technology technical library</A></TD></TR><!--START RESERVED FOR FUTURE USE INCLUDE FILES--><!-- No content currently --><!--END RESERVED FOR FUTURE USE INCLUDE FILES--><TR><TD width="14"><IMG class="display-img" alt="" height="1" width="14" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="136"><IMG class="display-img" alt="" height="19" width="136" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR></TBODY></TABLE><!--START RESERVED FOR FUTURE USE INCLUDE FILES--><!-- Next Steps Area:  Start -->
+<!-- Commented out the include call in the dwmaster version of this file to prevent ajax calls
+     being made during article previews and testing.  Live site has uncommented copy of this file (jpp) -->
+<!-- Call Next Steps Servlet -->
+<SCRIPT language="JavaScript" type="text/javascript">
+<!--
+/*
+ * ajaxInclude makes a call to the url and render the results in the div tag specified in divId
+ */
+function ajaxInclude(url, divId) { 
+ var req = newXMLHttpRequest(); 
+ if (req) { 
+   req.onreadystatechange = getReadyStateHandler(req, 
+	function (result) {  
+           var contents = document.getElementById(divId);  
+           if (result != null && result.length > 0 && contents != null) {
+	     contents.innerHTML = result;  
+           }
+        }); 
+   req.open("GET", url, true);
+   req.send("");
+ }
+}
+//-->
+</SCRIPT>
+
+<!-- Display Next Steps Result -->
+<DIV id="nextsteps">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--XSLT stylesheet used to transform this content: nextsteps.xsl--><TABLE border="0" cellpadding="0" cellspacing="0" width="150"><TBODY><TR><TD class="vlgray"><TABLE border="0" cellpadding="0" cellspacing="0" width="150"><TBODY><TR><TD colspan="2"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" width="1" height="8" alt=""></TD></TR><TR><TD colspan="2" class="related"><B class="related">Next steps</B></TD></TR><TR><TD colspan="2" class="related"><P><SPAN class="fnt">Spring, JRuby, and Ajax development is easier with WebSphere Application Server - a smart Java 5 and J2EE Web services-based application server.</SPAN></P></TD></TR><TR class="rlinks"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/rl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/downloads/ws/wasce/learn.html?S_TACT=105AGY17&S_CMP=TECHSUG" class="rlinks">Try: The no-charge WebSphere Application Server Community Edition is a pre-integrated, lightweight Java 5 application server built on Apache Tomcat and other best-of-breed open source software such as OpenEJB, Apache Axis, and Apache Derby.</A></TD></TR><TR><TD colspan="2"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="8" width="150" alt=""></TD></TR><TR class="rlinks"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/rl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/websphere/library/techarticles/0810_asplund/0810_asplund.html?S_TACT=105AGY17&S_CMP=TECHSUG" class="rlinks">Article: The article leverage the Spring Framework and the WebSphere Application Server to improve your J2EE project productivity.</A></TD></TR><TR><TD colspan="2"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="8" width="150" alt=""></TD></TR><TR class="rlinks"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/rl-bullet.gif"></TD><TD><A href="http://www.ibm.com/developerworks/edu/x-dw-x-jrorajax.html?S_TACT=105AGY17&S_CMP=TECHSUG" class="rlinks">Tutorial: See how the free WebSphere Application Server and XML can improve the efficiency of your JRuby on Rails and Ajax development.</A></TD></TR><TR><TD colspan="2"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="8" width="150" alt=""></TD></TR><TR class="rlinks"><TD><IMG alt="" height="8" width="2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/rl-bullet.gif"></TD><TD><A href="http://www-142.ibm.com/software/dre/h2b/buildh2bpage.wss?synkey=G394201N28809H35&S_TACT=105AGY17&S_CMP=TECHSUG" class="rlinks">Buy: WebSphere Application Server - Express</A></TD></TR><TR><TD width="14"><IMG class="display-img" alt="" height="1" width="14" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="136"><IMG class="display-img" alt="" height="8" width="136" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE>
+</DIV>
+
+<!-- Initiate Next Steps Call -->
+<SCRIPT language="JavaScript" type="text/javascript">
+<!-- 
+ ajaxInclude("/developerworks/niagara/jsp/getNiagaraContent.jsp?url="+window.location.href,"nextsteps");
+//-->
+</SCRIPT>
+<!-- Next Steps Area:  End --><!--END RESERVED FOR FUTURE USE INCLUDE FILES--></TD><!--LEFTNAV_END--><TD width="100&percnt;"><TABLE id="content-table" border="0" cellpadding="0" cellspacing="0" width="100&percnt;"><TBODY><TR valign="top"><TD width="100&percnt;"><TABLE border="0" cellpadding="0" cellspacing="0" width="100&percnt;"><TBODY><TR><TD><A name="main"><IMG border="0" alt="skip to main content" height="1" width="592" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></A></TD></TR></TBODY></TABLE><TABLE border="0" cellpadding="0" cellspacing="0" width="100&percnt;"><TBODY><TR valign="top"><TD height="18" width="10"><IMG alt="" height="18" width="10" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="100&percnt;"><IMG alt="" height="6" width="1" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"><BR><A href="http://www.ibm.com/developerworks/" class="bctl">developerWorks</A><SPAN class="bct">&nbsp;&nbsp;&gt;&nbsp;&nbsp;</SPAN><A class="bctl" href="http://www.ibm.com/developerworks/java/">Java technology</A><SPAN class="bct">&nbsp;&nbsp;&gt;</SPAN><IMG alt="" height="1" width="1" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"><BR><H1><SPAN style="color: #999999">Java theory and practice: </SPAN>Fixing the Java Memory Model, Part 2</H1><P id="subtitle"><EM>How will the JMM change under JSR 133?</EM></P><IMG alt="" height="6" width="1" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" class="display-img"></TD><TD class="no-print" width="192"><A href="http://www.ibm.com/developerworks/"><IMG alt="developerWorks" border="0" height="18" width="192" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/dw.gif"></A></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><TABLE border="0" cellpadding="0" cellspacing="0" width="100&percnt;"><TBODY><TR valign="top"><TD width="10"><IMG alt="" height="1" width="10" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="100&percnt;"><TABLE class="no-print" border="0" width="160" cellspacing="0" cellpadding="0" align="right"><TBODY><TR><TD width="10"><IMG alt="" height="1" width="10" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD><TABLE width="150" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD class="v14-header-1-small">Document options</TD></TR></TBODY></TABLE><TABLE class="v14-gray-table-border" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD class="no-padding" width="150"><NOSCRIPT></NOSCRIPT><NOSCRIPT></NOSCRIPT><TABLE width="143" cellspacing="0" cellpadding="0" border="0"><SCRIPT language="JavaScript" type="text/javascript">
+<!--
+document.write('<tr valign="top"><td width="8"><img src="//www.ibm.com/i/c.gif" width="8" height="1" alt=""/></td><td width="16"><img alt="Set printer orientation to landscape mode" height="16" src="//www.ibm.com/i/v14/icons/printer.gif" width="16" vspace="3" /></td><td width="122"><p><b><a class="smallplainlink" href="javascript:print()">Print this page</a></b></p></td></tr>');
+//-->
+</SCRIPT><TBODY><TR valign="top"><TD width="8"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" width="8" height="1" alt=""></TD><TD width="16"><IMG alt="Set printer orientation to landscape mode" height="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/printer.gif" width="16" vspace="3"></TD><TD width="122"><P><B><A class="smallplainlink" href="javascript:print()">Print this page</A></B></P></TD></TR>
+<SCRIPT language="JavaScript" type="text/javascript">
+<!-- 5.6 10/24 llk: added cdata around the subdirectory path of email gif-->
+<!--
+document.write('<tr valign="top"><td width="8"><img src="//www.ibm.com/i/c.gif" width="8" height="1" alt=""/></td><td width="16"><img src="//www.ibm.com/i/v14/icons/em.gif" height="16" width="16" vspace="3" alt="Email this page" /></td><td width="122"><p><a class="smallplainlink" href="javascript:void newWindow()"><b>E-mail this page</b></a></p></td></tr>');
+//-->
+</SCRIPT><TR valign="top"><TD width="8"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" width="8" height="1" alt=""></TD><TD width="16"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/em.gif" height="16" width="16" vspace="3" alt="Email this page"></TD><TD width="122"><P><A class="smallplainlink" href="javascript:void newWindow()"><B>E-mail this page</B></A></P></TD></TR><TR valign="top"><TD width="8"><IMG alt="" height="1" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="16"><IMG alt="" vspace="3" border="0" width="16" height="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/fw_bold.gif"></TD><TD width="122"><P><A class="smallplainlink" href="http://www-106.ibm.com/developerworks/forums/dw_forum.jsp?forum=181&cat=10"><B>Discuss</B></A></P></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><!--START RESERVED FOR FUTURE USE INCLUDE FILES--><!--Updated 12/04/08 by gem-->
+<BR><TABLE border="0" cellpadding="0" cellspacing="0" width="150"><TBODY><TR><TD class="v14-header-2-small">Hey there! developerWorks is using Twitter</TD></TR></TBODY></TABLE><TABLE border="0" cellpadding="0" cellspacing="0" class="v14-gray-table-border"><TBODY><TR><TD width="150" class="no-padding"><TABLE border="0" cellpadding="0" cellspacing="0" width="143"><TBODY><TR valign="top"><TD width="8"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" width="8" height="1" alt=""></TD><TD><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/fw_bold.gif" height="16" width="16" border="0" vspace="3" alt=""></TD><TD width="125"><P><A href="http://www.twitter.com/developerworks/?S_TACT=105AGX01&S_CMP=nsf" class="smallplainlink">Follow  us</A></P></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><!--END RESERVED FOR FUTURE USE INCLUDE FILES--><BR><TABLE width="150" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD class="v14-header-2-small">Rate this page</TD></TR></TBODY></TABLE><TABLE class="v14-gray-table-border" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD class="no-padding" width="150"><TABLE width="143" cellspacing="0" cellpadding="0" border="0"><TBODY><TR valign="top"><TD width="8"><IMG alt="" height="1" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD><IMG alt="" vspace="3" border="0" width="16" height="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/d_bold.gif"></TD><TD width="125"><P><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#rate" class="smallplainlink"><B>Help us improve this content</B></A></P></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><BR></TD></TR></TBODY></TABLE><P>Level: Advanced</P><P><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#author">Brian Goetz</A> (<A href="mailto:brian@quiotix.com?subject=Fixing%20the%20Java%20Memory%20Model,%20Part%202">brian@quiotix.com</A>), Principal Consultant, Quiotix Corp<BR></P><P> 30 Mar  2004</P><BLOCKQUOTE>JSR 133, which has been active for nearly three years, has recently issued its public recommendation on what to do about the Java Memory Model (JMM). In <A href="http://www.ibm.com/developerworks/java/library/j-jtp02244.html">Part 1</A> of this series, columnist Brian Goetz focused on some of the serious flaws that were found in the original JMM, which resulted in some surprisingly difficult semantics for concepts that were supposed to be simple. This month, he reveals how the semantics of <CODE>volatile</CODE> and <CODE>final</CODE> will change under the new JMM, changes that will bring their semantics in line with most developers&#39; intuition. Some of these changes are already present in JDK 1.4; others will have to wait until JDK 1.5.</BLOCKQUOTE><!--START RESERVED FOR FUTURE USE INCLUDE FILES--><SCRIPT type="text/javascript" language="javascript">
+	     // <![CDATA[
+			capture_referrer();
+		 // ]]>
+</SCRIPT>
+
+<!--  START : HTML FOR SEARCH REFERRER -->
+  <DIV id="search_referrer_results" style="display:none">
+
+
+<!--  START : HTML FOR ARTICLE SEARCH -->
+  <DIV id="article_results" style="display:block"></DIV>
+<!--  END : HTML FOR ARTICLE SEARCH -->
+
+<!--  START : HTML FOR CODE SEARCH -->
+   <DIV id="code_results" style="display:block"></DIV>
+<!--  END : HTML FOR CODE SEARCH -->
+
+
+   <BR>
+   <BR>
+   </DIV>
+<!--  END : HTML FOR SEARCH REFERRER --><!--END RESERVED FOR FUTURE USE INCLUDE FILES--><P>
+Writing concurrent code is hard to begin with; the language should not
+make it any harder. While the Java platform included support for threading from
+the outset, including a cross-platform memory model that was intended
+to provide &quot;Write Once, Run Anywhere&quot; guarantees for properly
+synchronized programs, the original memory model had some holes.
+And while many Java platforms provided stronger guarantees than were
+required by the JMM, the holes in the JMM undermined the ability to
+easily write concurrent Java programs that could run on any platform.
+So in May of 2001, JSR 133 was formed, charged with fixing the Java Memory Model.
+<A href="http://www.ibm.com/developerworks/java/library/j-jtp02244.html">Last month</A>, 
+I talked about some of those holes; this month, I&#39;ll talk about how they&#39;ve been plugged.
+</P>
+
+
+<P><A name="1.0"><SPAN class="atitle">Visibility, revisited</SPAN></A></P>
+<P>One of the key concepts needed to understand the JMM is
+that of <I>visibility</I> -- how do you know that if thread A executes
+<CODE>someVariable&nbsp;=&nbsp;3</CODE>, other threads will see the value 3 written there
+by thread A?  A number of reasons exist for why another thread might
+not immediately see the value 3 for <CODE>someVariable</CODE>: it could be because the compiler
+has reordered instructions in order to execute more efficiently, or
+that <CODE>someVariable</CODE> was cached in a register,
+or that its value was written to the cache on the writing processor
+but not yet flushed to main memory, or that there is an old (or stale)
+value in the reading processor&#39;s cache. It is the memory model that
+determines when a thread can reliably &quot;see&quot; writes to variables made
+by other threads. In particular, the memory model defines semantics
+for <CODE>volatile</CODE>, <CODE>synchronized</CODE>, and <CODE>final</CODE> that make guarantees of visibility of
+memory operations across threads.
+</P>
+<TABLE align="right" border="0" cellspacing="0" cellpadding="0" width="40&percnt;"><TBODY><TR><TD width="10"><IMG alt="" height="1" width="10" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD><TABLE border="1" cellspacing="0" cellpadding="5" width="100&percnt;"><TBODY><TR><TD bgcolor="#eeeeee">
+<A name="sidebar1"><B>Don&#39;t miss the rest of this series</B></A><BR>
+<P>Part 1, &quot;<A href="http://www.ibm.com/developerworks/library/j-jtp02244.html">What is the Java Memory Model, and how was it broken in the first place?</A>&quot; (February 2004)</P>
+</TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE>
+<P>
+When a thread exits a synchronized block as part of releasing the
+associated monitor, the JMM requires that the local processor cache be
+flushed to main memory. (Actually, the memory model does not talk
+about caches -- it talks about an abstraction, <I>local memory</I>,
+which encompasses caches, registers, and other hardware and compiler optimizations.)  Similarly, as part of
+acquiring the monitor when entering a synchronized block, local caches
+are invalidated so that subsequent reads will go directly to main
+memory and not the local cache. This process guarantees that when a variable
+is written by one thread during a synchronized block protected by a
+given monitor and read by another thread during a synchronized block
+protected by the same monitor, the write to the variable will be
+visible by the reading thread. The JMM does not make this guarantee
+in the absence of synchronization -- which is why synchronization (or
+its younger sibling, <CODE>volatile</CODE>) must be used
+whenever multiple threads are accessing the same variables.
+</P>
+
+
+<BR><TABLE border="0" cellspacing="0" cellpadding="0" width="100&percnt;"><TBODY><TR><TD><IMG width="100&percnt;" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/blue_rule.gif" height="1" alt=""></TD></TR></TBODY></TABLE><TABLE class="no-print" cellspacing="0" cellpadding="0" align="right"><TBODY><TR align="right"><TD><TABLE border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD valign="middle"><IMG width="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/u_bold.gif" height="16" border="0" alt=""><BR></TD><TD valign="top" align="right"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#main" class="fbox"><B>Back to top</B></A></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><BR><BR><P><A name="2.0"><SPAN class="atitle">New guarantees for volatile</SPAN></A></P>
+<P>The original semantics for <CODE>volatile</CODE>
+guaranteed only that reads and writes of <CODE>volatile</CODE> fields would be made directly to main
+memory, instead of to registers or the local processor cache, and that
+actions on volatile variables on behalf of a thread are performed in
+the order that the thread requested. In other words, this means that the old memory
+model made promises only about the visibility of the variable being
+read or written, and no promises about the visibility of writes to
+other variables. While this was easier to implement efficiently, it
+turned out to be less useful than initially thought.
+</P>
+
+<P>
+While reads and writes of volatile variables could not be reordered
+with reads and writes of other volatile variables, they could still be
+reordered with reads and writes of nonvolatile variables. 
+In <A href="http://www.ibm.com/developerworks/java/library/j-jtp02244.html">Part 1</A>,
+you learned how the code in Listing 1 was not sufficient (under the old
+memory model) to guarantee that the correct value for <CODE>configOptions</CODE> and all the variables reachable
+indirectly through <CODE>configOptions</CODE> (such as
+the elements of the <CODE>Map</CODE>) would be visible
+to thread B, because the initialization of <CODE>configOptions</CODE> could have been reordered with the
+initialization of the volatile <CODE>initialized</CODE>
+variable.
+</P>
+
+<BR><A name="listing1"><B>Listing 1. Using a volatile variable as a &quot;guard&quot;</B></A><BR><TABLE width="100&percnt;" cellpadding="0" cellspacing="0" border="0"><TBODY><TR><TD class="code-outline"><PRE class="displaycode">
+Map configOptions;
+char[] configText;
+volatile boolean initialized = false;
+
+// In Thread A
+configOptions = new HashMap();
+configText = readConfigFile(fileName);
+processConfigOptions(configText, configOptions);
+initialized = true;
+
+// In Thread B
+while (!initialized) 
+  sleep();
+// use configOptions 
+</PRE></TD></TR></TBODY></TABLE><BR>
+
+<P>
+Unfortunately, this situation is a common use case for volatile -- using a
+volatile field as a &quot;guard&quot; to indicate that a set of shared variables
+had been initialized. The JSR 133 Expert Group decided that it would be more
+sensible for volatile reads and writes not to be reorderable with any
+other memory operations -- to support precisely this and other similar
+use cases. Under the new memory model, when thread A writes to a
+volatile variable V, and thread B reads from V, any variable values
+that were visible to A at the time that V was written are guaranteed
+now to be visible to B. The result is a more useful semantics of
+<CODE>volatile</CODE>, at the cost of a somewhat higher performance penalty
+for accessing volatile fields.
+</P>
+
+
+<BR><TABLE border="0" cellspacing="0" cellpadding="0" width="100&percnt;"><TBODY><TR><TD><IMG width="100&percnt;" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/blue_rule.gif" height="1" alt=""></TD></TR></TBODY></TABLE><TABLE class="no-print" cellspacing="0" cellpadding="0" align="right"><TBODY><TR align="right"><TD><TABLE border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD valign="middle"><IMG width="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/u_bold.gif" height="16" border="0" alt=""><BR></TD><TD valign="top" align="right"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#main" class="fbox"><B>Back to top</B></A></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><BR><BR><P><A name="3.0"><SPAN class="atitle">What happens before what?</SPAN></A></P>
+<P>Actions, such as reads and writes of variables, are ordered within a
+thread according to what is called the &quot;program order&quot; -- the order in
+which the semantics of the program say they should occur. (The
+compiler is actually free to take some liberties with the program
+order within a thread as long as as-if-serial semantics are
+preserved.)  Actions in different threads are not necessarily ordered
+with respect to each other at all -- if you start two threads and
+they each execute without synchronizing on any common monitors or
+touching any common volatile variables, you can predict exactly
+<I>nothing</I> about the relative order in which actions in one thread will
+execute (or become visible to a third thread) with respect to actions
+in the other thread.
+</P>
+
+<P>
+Additional ordering guarantees are created when a thread is started, a
+thread is joined with another thread, a thread acquires or releases a
+monitor (enters or exits a synchronized block), or a thread accesses a
+volatile variable. The JMM describes the ordering guarantees that are made when a program uses synchronization or volatile variables to coordinate activities in multiple threads. The new JMM, informally, defines an ordering called <I>happens-before</I>, which is
+a partial ordering of all actions within a program, as follows:
+</P>
+
+<UL>
+<LI>Each action in a thread <I>happens-before</I> every action in that thread
+that comes later in the program order<BR><BR></LI>
+
+<LI>An unlock on a monitor <I>happens-before</I> every subsequent lock on
+that same monitor<BR><BR></LI>
+
+<LI>A write to a volatile field <I>happens-before</I> every subsequent read
+of that same volatile<BR><BR></LI>
+
+<LI>A call to <CODE>Thread.start()</CODE> on a thread
+<I>happens-before</I> any actions in the started thread<BR><BR></LI>
+
+<LI>All actions in a thread <I>happen-before</I> any other thread
+successfully returns from a <CODE>Thread.join()</CODE>
+on that thread</LI>
+</UL>
+
+<P>
+It is the third of these rules, the one governing reads and writes of
+volatile variables, that is new and fixes the problem with the example
+in Listing 1. Because the write of the volatile variable
+<CODE>initialized</CODE> happens after the initialization of
+<CODE>configOptions</CODE>, the use of <CODE>configOptions</CODE>
+happens after the read of <CODE>initialized</CODE>, and the read of
+<CODE>initialized</CODE> happens after the write to
+<CODE>initialized</CODE>, you can conclude that the initialization of
+<CODE>configOptions</CODE> by thread A happens before the use of
+<CODE>configOptions</CODE> by thread B. Therefore,
+<CODE>configOptions</CODE> and the variables reachable through it will
+be visible to thread B.
+</P>
+
+	<BR><A name="figure1"><B>Figure1. Using synchronization to guarantee
+visibility of memory writes across threads</B></A><BR>
+	<IMG alt="" height="257" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/jsr133.gif" width="336">
+<BR>
+<P><A name="3.1"><SPAN class="smalltitle">Data races</SPAN></A></P> 
+<P>A program is said to have a <I>data race</I>, and therefore not be a
+&quot;properly synchronized&quot; program, when there is a variable that is read
+by more than one thread, written by at least one thread, and the write
+and the reads are not ordered by a happens-before relationship.
+</P>
+
+<P><A name="3.2"><SPAN class="smalltitle">Does this fix the double-checked locking problem?</SPAN></A></P> 
+<P>One of the proposed fixes to the double-checked locking problem was to
+make the field that holds the lazily initialized instance a volatile
+field. (See <A href="http://www.ibm.com/developerworks/library/j-jtp03304/#resources">Resources</A> for a description of the double-checked locking
+problem and an an explanation of why the proposed algorithmic fixes don&#39;t work.)  Under the
+old memory model, this did not render double-checked locking
+thread-safe, because writes to a volatile field could still be
+reordered with writes to other nonvolatile fields (such as the fields
+of the newly constructed object), and therefore the volatile instance
+reference could still hold a reference to an incompletely constructed
+object.
+</P>
+
+<P>
+Under the new memory model, this &quot;fix&quot; to double-checked locking
+renders the idiom thread-safe. But that still doesn&#39;t mean that you
+should use this idiom!  The whole point of double-checked
+locking was that it was supposed to be a performance optimization,
+designed to eliminate synchronization on the common code path, largely
+because synchronization was relatively expensive in very early JDKs.
+Not only has uncontended synchronization gotten <I>a lot</I> cheaper
+since then, but the new changes to the semantics of <CODE>volatile</CODE> make it relatively more expensive than
+the old semantics on some platforms. (Effectively, each read or write
+to a volatile field is like &quot;half&quot; a synchronization -- a read of a
+volatile has the same memory semantics as a monitor acquire, and a
+write of a volatile has the same semantics as a monitor release.) So
+if the goal of double-checked locking is supposed to offer improved
+performance over a more straightforward synchronized approach, this
+&quot;fixed&quot; version doesn&#39;t help very much either.
+</P>
+
+<P>
+Instead of double-checked locking, use the Initialize-on-demand Holder
+Class idiom, which provides lazy initialization, is thread-safe, and
+is faster and less confusing than double-checked locking:
+</P>
+<BR><A name="code2"><B>Listing 2. The Initialize-On-Demand Holder Class idiom</B></A><BR>
+<TABLE width="100&percnt;" cellpadding="0" cellspacing="0" border="0"><TBODY><TR><TD class="code-outline"><PRE class="displaycode">private static class LazySomethingHolder {
+  public static Something something = new Something();
+}
+
+...
+
+public static Something getInstance() {
+  return LazySomethingHolder.something;
+}
+</PRE></TD></TR></TBODY></TABLE><BR>
+
+<P>
+This idiom derives its thread safety from the fact that operations
+that are part of class initialization, such as static initializers,
+are guaranteed to be visible to all threads that use that class, and
+its lazy initialization from the fact that the inner class is not
+loaded until some thread references one of its fields or methods.
+</P>
+
+
+<BR><TABLE border="0" cellspacing="0" cellpadding="0" width="100&percnt;"><TBODY><TR><TD><IMG width="100&percnt;" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/blue_rule.gif" height="1" alt=""></TD></TR></TBODY></TABLE><TABLE class="no-print" cellspacing="0" cellpadding="0" align="right"><TBODY><TR align="right"><TD><TABLE border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD valign="middle"><IMG width="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/u_bold.gif" height="16" border="0" alt=""><BR></TD><TD valign="top" align="right"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#main" class="fbox"><B>Back to top</B></A></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><BR><BR><P><A name="4.0"><SPAN class="atitle">Initialization safety</SPAN></A></P>
+<P>The new JMM also seeks to provide a new guarantee of
+<I>initialization safety</I> -- that as long as an object is properly
+constructed (meaning that a reference to the object is not published
+before the constructor has completed), then all threads will see the
+values for its final fields that were set in its constructor,
+regardless of whether or not synchronization is used to pass the reference from one thread to
+another. Further, any
+variables that can be reached through a final field of a properly
+constructed object, such as fields of an object referenced by a final
+field, are also guaranteed to be visible to other threads as well.
+This means that if a final field contains a reference to, say, a <CODE>LinkedList</CODE>, in addition to the correct value of
+the reference being visible to other threads, also the contents of
+that <CODE>LinkedList</CODE> at construction time would
+be visible to other threads without synchronization. The result is a
+significant strengthening of the meaning of <CODE>final</CODE> -- that final fields can be safely accessed
+without synchronization, and that compilers can assume that final
+fields will not change and can therefore optimize away multiple
+fetches.
+</P>
+
+
+<P><A name="4.1"><SPAN class="smalltitle">Final means final</SPAN></A></P>
+<P>The mechanism by which final fields could appear to change their value
+under the old memory model was outlined in 
+<A href="http://www.ibm.com/developerworks/java/library/j-jtp02244.html">Part 1</A> -- in the absence of
+synchronization, another thread could first see the default value for
+a final field and then later see the correct value.
+</P>
+
+<P>
+Under the new memory model, there is something similar to a
+happens-before relationship between the write of a final field in a
+constructor and the initial load of a shared reference to that object
+in another thread. When the constructor completes, all of the writes
+to final fields (and to variables reachable indirectly through those
+final fields) become &quot;frozen,&quot; and any thread that obtains a reference
+to that object after the freeze is guaranteed to see the frozen values
+for all frozen fields. Writes that initialize final fields will not
+be reordered with operations following the freeze associated with the
+constructor.
+</P>
+
+
+<BR><TABLE border="0" cellspacing="0" cellpadding="0" width="100&percnt;"><TBODY><TR><TD><IMG width="100&percnt;" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/blue_rule.gif" height="1" alt=""></TD></TR></TBODY></TABLE><TABLE class="no-print" cellspacing="0" cellpadding="0" align="right"><TBODY><TR align="right"><TD><TABLE border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD valign="middle"><IMG width="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/u_bold.gif" height="16" border="0" alt=""><BR></TD><TD valign="top" align="right"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#main" class="fbox"><B>Back to top</B></A></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><BR><BR><P><A name="5.0"><SPAN class="atitle">Summary</SPAN></A></P>
+<P>JSR 133 significantly strengthens the semantics of <CODE>volatile</CODE>, so that volatile flags can be used
+reliably as indicators that the program state has been changed by
+another thread. As a result of making volatile more &quot;heavyweight,&quot;
+the performance cost of using volatile has been brought closer to the
+performance cost of synchronization in some cases, but the performance
+cost is still quite low on most platforms. JSR 133 also significantly
+strengthens the semantics of <CODE>final</CODE>. If an
+object&#39;s reference is not allowed to escape during construction, then
+once a constructor has completed and a thread publishes a reference to
+an object, that object&#39;s final fields are guaranteed to be visible,
+correct, and constant to all other threads without synchronization.
+</P>
+
+<P>
+These changes greatly strengthen the utility of immutable objects in
+concurrent programs; immutable objects finally become inherently
+thread-safe (as they were intended to be all along), even if a data
+race is used to pass references to the immutable object between
+threads.
+</P>
+
+<P>
+The one caveat with initialization safety is that the object&#39;s
+reference must not &quot;escape&quot; its constructor -- the constructor should
+not publish, directly or indirectly, a reference to the object being
+constructed. This includes publishing references to nonstatic inner
+classes, and generally precludes starting threads from within a
+constructor. For a more detailed explanation of safe construction,
+see <A href="http://www.ibm.com/developerworks/library/j-jtp03304/#resources">Resources</A>.
+</P>
+<BR><BR><P><A name="resources"><SPAN class="atitle">Resources</SPAN></A></P><UL><LI><A href="http://www-106.ibm.com/developerworks/forums/dw_forum.jsp?forum=181&cat=10">Participate in the discussion forum</A>.<BR><BR></LI><LI>Read the complete <I><A href="http://www.ibm.com/developerworks/views/java/libraryview.jsp?search_by=practice:">Java
+theory and practice</A></I> series by Brian Goetz, including <A href="http://www.ibm.com/developerworks/library/j-jtp02244.html">Part 1</A> of this series, which describes the problems with the original Java Memory Model.<BR><BR></LI><LI>Bill Pugh, who originally discovered many of the problems with the Java Memory Model, maintains a <A href="http://www.cs.umd.edu/~pugh/java/memoryModel/">Java Memory Model page</A>.<BR><BR></LI><LI>The issues with the old memory model and a summary of the new memory model semantics can be found in the <A href="http://www.cs.umd.edu/users/pugh/java/memoryModel/jsr-133-faq.html">JSR 133 FAQ</A>.<BR><BR></LI><LI>Read more about the <A href="http://www.javaworld.com/jw-02-2001/jw-0209-double.html">double-checked locking
+problem</A>, and <A href="http://www.javaworld.com/javaworld/jw-05-2001/jw-0525-double.html">why the obvious attempts to fix it don&#39;t work</A>.<BR><BR></LI><LI>Read more about why you don&#39;t want to let a reference to an object <A href="http://www.ibm.com/developerworks/java/library/j-jtp0618.html">escape during construction</A>.<BR><BR></LI><LI><A href="http://jcp.org/en/jsr/detail?id=133">JSR 133</A>, charged with revising the JMM, was convened under the Java Community Process. JSR 133 has recently released its <A href="http://jcp.org/aboutJava/communityprocess/review/jsr133/index.html">public review specification</A>.<BR><BR></LI><LI>If you want to see how specifications like this are made, browse the <A href="http://www.cs.umd.edu/~pugh/java/memoryModel/archive/">JMM mailing list archive</A>.<BR><BR></LI><LI><I><A href="http://www.amazon.com/gp/product/0201310090/104-1464220-8871162?n=283155">Concurrent Programming in Java</A></I> by Doug Lea (Addison-Wesley, 1999) is a masterful book on the subtle issues surrounding multithreaded Java programming.<BR><BR></LI><LI><A href="http://gee.cs.oswego.edu/dl/cpj/jmm.html">Synchronization and the Java Memory Model</A> summarizes the actual meaning of synchronization.<BR><BR></LI><LI>Chapter 17 of <I><A href="http://www.amazon.com/gp/product/0201310082/104-1464220-8871162?n=283155">The Java Language Specification</A></I> by James Gosling, Bill Joy, Guy Steele, and Gilad Bracha (Addison-Wesley, 1996) covers the gory details of the original Java Memory Model.<BR><BR></LI><LI>Find hundreds more Java technology resources on the 
+<A href="http://www.ibm.com/developerworks/java/"><I>developerWorks</I> Java technology zone</A>.<BR><BR></LI><LI><A href="http://www.ibm.com/developerworks/apps/SendTo?bookstore=safari">Browse for books</A> on these and other technical topics.<BR></LI></UL>
+
+<BR><BR><P><A name="author"><SPAN class="atitle">About the author</SPAN></A></P><TABLE border="0" cellspacing="0" cellpadding="0" width="100&percnt;"><TBODY><TR><TD colspan="3"><IMG alt="" width="100&percnt;" height="5" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR><TR align="left" valign="top"><TD><P></TD><TD><IMG alt="" width="4" height="5" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD width="100&percnt;"><P>Brian Goetz has been a
+professional software developer for over 15 years. He is a Principal
+Consultant at Quiotix, a software
+development and consulting firm located in Los Altos, California, and
+he serves on several JCP Expert Groups. See Brian&#39;s <A href="http://www.briangoetz.com/pubs.html">published and upcoming
+articles</A> in popular industry publications.</P></TD></TR></TBODY></TABLE><BR><BR><BR><P class="no-print"><SPAN class="atitle"><A name="rate">Rate this page</A></SPAN></P><SPAN class="no-print"><FORM action="http://www-128.ibm.com/developerworks/utils/RatingsHandler" method="post"><INPUT value="1" name="SITE_ID" type="hidden"><INPUT value="Java theory and practice: Fixing the Java Memory Model, Part 2" name="ArticleTitle" type="hidden"><INPUT value="Java technology" name="Zone" type="hidden"><INPUT value="http://www.ibm.com/developerworks/thankyou/feedback-thankyou.html" name="RedirectURL" type="hidden"><INPUT value="10928" name="ArticleID" type="hidden"><INPUT value="03302004" name="publish-date" type="hidden"><INPUT type="hidden" name="author1-email" value="brian@quiotix.com"><INPUT type="hidden" name="author1-email-cc" value=""><SCRIPT language="javascript" type="text/javascript">document.write('<input type="hidden" name="url" value="'+location.href+'" />');</SCRIPT><INPUT type="hidden" name="url" value="http://www.ibm.com/developerworks/library/j-jtp03304/"><IMG width="100&percnt;" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/gray_rule.gif" height="1" alt=""><BR><TABLE width="100&percnt;" class="v14-gray-table-border" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD width="100&percnt;"><TABLE width="100&percnt;" border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD colspan="3"><P>Please take a moment to complete this form to help us better serve you.</P></TD></TR><TR valign="top"><TD width="140"><IMG width="140" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="1" alt=""><BR><P><LABEL for="Goal">Did the information help you to achieve your goal?</LABEL></P></TD><TD width="303"><IMG width="303" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="6" alt=""><BR><TABLE width="100&percnt;" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD><INPUT value="Yes" id="goal-yes" name="goal" type="radio"><LABEL for="goal-yes">Yes</LABEL></TD><TD><INPUT value="No" id="goal-no" name="goal" type="radio"><LABEL for="goal-no">No</LABEL></TD><TD><INPUT value="Don&#39;t know" id="goal-undecided" name="goal" type="radio"><LABEL for="goal-undecided">Don&#39;t know</LABEL></TD></TR></TBODY></TABLE></TD><TD width="100&percnt;">&nbsp;</TD></TR><TR><TD colspan="3"><IMG alt="" height="12" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR><TR valign="top"><TD width="140"><IMG width="140" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="1" alt=""><BR><P><LABEL for="Comments">Please provide us with comments to help improve this page:</LABEL></P></TD><TD width="303"><IMG width="303" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="6" alt=""><BR><TABLE width="100&percnt;" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD><TEXTAREA class="iform" cols="35" rows="5" wrap="virtual" id="Comments" name="Comments">&nbsp;</TEXTAREA></TD></TR></TBODY></TABLE></TD><TD width="100&percnt;">&nbsp;</TD></TR><TR><TD colspan="3"><IMG alt="" height="12" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR><TR valign="top"><TD width="140"><IMG width="140" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="1" alt=""><BR><P><LABEL for="Rating">How useful is the information?</LABEL></P></TD><TD width="303"><IMG width="303" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="6" alt=""><BR><TABLE width="100&percnt;" cellspacing="0" cellpadding="0" border="0"><TBODY><TR><TD align="left" width="58"><INPUT value="1" id="Rating1" name="Rating" type="radio"><LABEL for="Rating1">1</LABEL></TD><TD align="left" width="58"><INPUT value="2" id="Rating2" name="Rating" type="radio"><LABEL for="Rating2">2</LABEL></TD><TD align="left" width="58"><INPUT value="3" id="Rating3" name="Rating" type="radio"><LABEL for="Rating3">3</LABEL></TD><TD align="left" width="58"><INPUT value="4" id="Rating4" name="Rating" type="radio"><LABEL for="Rating4">4</LABEL></TD><TD align="left" width="61"><INPUT value="5" id="Rating5" name="Rating" type="radio"><LABEL for="Rating5">5</LABEL></TD></TR><TR><TD align="left" width="60"><SPAN class="greytext">Not</SPAN><BR><SPAN class="greytext">useful</SPAN></TD><TD align="left" width="60"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="1" width="1" alt=""></TD><TD align="left" width="60"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="1" width="1" alt=""></TD><TD align="left" width="60"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif" height="1" width="1" alt=""></TD><TD align="left" width="63"><SPAN class="greytext">Extremely<BR>useful</SPAN></TD></TR></TBODY></TABLE></TD><TD width="100&percnt;">&nbsp;</TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><TABLE class="v14-gray-table-border" width="100&percnt;" border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD colspan="3"><IMG alt="" height="8" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR><TR><TD width="8"><IMG alt="" height="1" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD><TD colspan="3"><INPUT alt="Submit" height="21" width="120" border="0" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/submit.gif" type="image"></TD></TR><TR><TD colspan="3"><IMG alt="" height="8" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR></TBODY></TABLE></FORM><BR></SPAN><BR><P><TABLE width="100&percnt;" cellpadding="5" cellspacing="0" border="0">
+<TBODY><TR><TD><SPAN class="atitle">Share this.... </SPAN><P>
+</P><TABLE cellpadding="0" cellspacing="0" width="100&percnt;" border="0">
+<TBODY><TR align="left" valign="top">
+<TD width="21">
+	<A href="javascript:location.href='http://digg.com/submit?phase=2&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)">
+<IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/10x10-digg-thumb.gif" width="10" height="10" alt="digg" border="0"></A></TD>
+	<TD width="120">
+             <A href="javascript:location.href='http://digg.com/submit?phase=2&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)"><SPAN style="nowrap">Digg this story</SPAN></A></TD>
+
+<!--<td width="8"><img alt="" height="1" width="8" src="//www.ibm.com/i/c.gif"/></td>-->
+<TD width="21"><IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/icon_delicious.gif" height="16" width="16" alt="del.icio.us" border="0"> </TD>
+<TD width="100"><A class="fbox" href="http://del.icio.us/post" onclick="window.open(&#39;http://del.icio.us/post?v=4&amp;noui&amp;jump=close&amp;url=&#39;+encodeURIComponent(location.href)+&#39;&amp;title=&#39;+encodeURIComponent(document.title), &#39;delicious&#39;,&#39;toolbar=no,width=700,height=400&#39;); return false;"><SPAN style="nowrap">del.icio.us</SPAN></A></TD>
+
+<!--<td width="8"><img alt="" height="1" width="8" src="//www.ibm.com/i/c.gif"/></td>-->
+<TD width="21">
+	<!-- start Slashdot it link -->
+	<A href="javascript:location.href='http://slashdot.org/bookmark.pl?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)">
+									<IMG src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/slashdot-favicon.gif" alt="Slashdot" border="0" height="16" width="16"></A></TD>
+	<TD width="120"><A href="javascript:location.href='http://slashdot.org/bookmark.pl?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)">Slashdot it!</A></TD>
+<!--<td width="8"><img alt="" height="1" width="8" src="//www.ibm.com/i/c.gif"/></td>-->
+<TD><IMG alt="" height="5" width="8" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD>
+</TR>
+
+</TBODY></TABLE><P>
+</TD></TR></TBODY></TABLE>
+<P><!--START RESERVED FOR FUTURE USE INCLUDE FILES--><!-- NO RESERVED CONTENT --><!--END RESERVED FOR FUTURE USE INCLUDE FILES--><BR><SPAN class="no-print"><TABLE cellspacing="0" cellpadding="0" align="right"><TBODY><TR align="right"><TD><TABLE border="0" cellpadding="0" cellspacing="0"><TBODY><TR><TD valign="middle"><IMG width="16" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/u_bold.gif" height="16" border="0" alt=""><BR></TD><TD valign="top" align="right"><A href="http://www.ibm.com/developerworks/library/j-jtp03304/#main" class="fbox"><B>Back to top</B></A></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><BR><BR></SPAN></TD><TD width="10"><IMG alt="" height="1" width="10" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/c.gif"></TD></TR></TBODY></TABLE></TD></TR></TBODY></TABLE><!--FOOTER_BEGIN--><DIV id="ibm-page-tools">
+<!-- IBM page tools -->
+<UL class="ibm-link-list"><LI class="ibm-first"><A href="javascript:void(0);" id="etplnk" class="ibm-email-link" onclick="displayFormLayer(event, 2);">E-mail this page</A></LI><LI><A href="javascript:print();" id="ptplnk" class="ibm-print-link">Print this page</A></LI><LI><A href="javascript:void(0);" onclick="ibmCommonDynamicNavBookmarkRun(&#39;http://digg.com/submit?phase=2&amp;&#39;, &#39;url&#39;, &#39;title&#39;);return false" id="ibmCommonDynamicNavDiggLink" hreflang="en" class="ibm-digg-link">Digg this</A></LI><LI><A href="javascript:void(0);" onclick="ibmCommonDynamicNavBookmarkRun(&#39;http://del.icio.us/post?&#39;, &#39;url&#39;, &#39;title&#39;);return false" id="ibmCommonDynamicNavDeliciousLink" hreflang="en" class="ibm-delicious-link">Save to del.icio.us</A></LI></UL></DIV>
+<DIV id="ibm-footer">
+<UL>
+<LI class="ibm-first"><A href="http://www.ibm.com/ibm/us/en/">About IBM</A></LI>
+<LI><A href="http://www.ibm.com/privacy/us/en/">Privacy</A></LI>
+<LI><A href="http://www.ibm.com/contact/us/en/">Contact</A></LI>
+<LI><A href="http://www.ibm.com/legal/us/en/">Terms of use</A></LI>
+<LI><A href="http://www.ibm.com/ibm/syndication/us/en/?cm_re=footer-_-ibmfeeds-_-top_level">IBM Feeds</A></LI><A href="http://www.ibm.com/ibm/syndication/us/en/?cm_re=footer-_-ibmfeeds-_-top_level"></A></UL>
+</DIV>
+
+<DIV id="ibm-overlay-top"></DIV></DIV>
+
+<SCRIPT type="text/javascript" language="JavaScript1.2" src="./Java theory and practice  Fixing the Java Memory Model, Part 2_files/stats.js"></SCRIPT>
+<NOSCRIPT></NOSCRIPT><!--FOOTER_END--><!--XSLT stylesheet used to transform this file:  dw-document-html-5.10.xsl--></BODY></HTML>
